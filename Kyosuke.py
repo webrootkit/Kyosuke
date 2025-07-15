@@ -3,90 +3,103 @@ from bs4 import BeautifulSoup
 import argparse
 import json
 from telethon.sync import TelegramClient
-from telethon.errors import SessionPasswordNeededError
 import random
 import string
 from stem import Signal
 from stem.control import Controller
 import time
+import threading
+import sys
+from datetime import datetime
 
-# Настройки Tor
+# Настройки
 TOR_PROXY = "socks5://127.0.0.1:9050"
-
-# Фейковые данные для генерации
 FAKE_NAMES = ["Иван Петров", "Алексей Смирнов", "Дарья Ковалёва"]
 FAKE_EMAIL_DOMAINS = ["@mail.ru", "@gmail.com", "@yandex.ru"]
 
-# ---[ Функции для даркнета ]---
-def get_tor_session():
-    session = requests.session()
-    session.proxies = {'http': TOR_PROXY, 'https': TOR_PROXY}
-    return session
+# ---[ Главное меню ]---
+def show_banner():
+    print(r"""
+  _  __ _   _  ___  ___ _  __ ___ 
+ | |/ /| | | |/ _ \/ __| |/ /| __|
+ | ' < | |_| | (_) \__ \ ' < | _| 
+ |_|\_\ \__,_|\___/|___/_|\_\|___|
+           by webrootkit | 2024
+    """)
 
-def renew_tor_ip():
-    with Controller.from_port(port=9051) as controller:
-        controller.authenticate()
-        controller.signal(Signal.NEWNYM)
-        time.sleep(5)
+def show_menu():
+    print("\n[01] Поиск в даркнет-форумах (Tor)")
+    print("[02] Проверка Telegram-аккаунтов")
+    print("[03] Генератор фейковых данных")
+    print("[04] Поиск по email в утечках")
+    print("[05] Поиск по IP (Shodan)")
+    print("[06] DOS-тестер (LOIC-style)")
+    print("[07] Выход\n")
 
-def parse_darknet_forum(query):
+# ---[ Функции поиска ]---
+def darknet_search(query):
     try:
-        session = get_tor_session()
-        url = f"http://forumzombiewh6jtwx.onion/search?q={query}"  # Пример форума
+        session = requests.session()
+        session.proxies = {'http': TOR_PROXY, 'https': TOR_PROXY}
+        url = f"http://forumzombiewh6jtwx.onion/search?q={query}"
         response = session.get(url, timeout=30)
         soup = BeautifulSoup(response.text, 'html.parser')
-        posts = soup.find_all('div', class_='post')[:5]  # Первые 5 результатов
-        return [p.text.strip() for p in posts]
+        return [p.text.strip() for p in soup.find_all('div', class_='post')[:3]]
     except Exception as e:
         return [f"Ошибка: {str(e)}"]
 
-# ---[ Функции для Telegram ]---
-def check_telegram(username):
+def telegram_search(username):
     try:
-        with TelegramClient('anon', 12345, '0123456789abcdef0123456789abcdef') as client:
+        with TelegramClient('anon', 12345, '0123456789abcdef') as client:
             user = client.get_entity(username)
             return {
                 'id': user.id,
                 'username': user.username,
-                'name': user.first_name,
-                'last_seen': user.status.was_online if user.status else "N/A"
+                'phone': user.phone,
+                'last_seen': str(user.status.was_online)
             }
     except Exception as e:
         return {"error": str(e)}
 
-# ---[ Генератор фейковых данных ]---
-def generate_fake_identity():
+def generate_fake_data():
     name = random.choice(FAKE_NAMES)
     email = name.lower().replace(" ", ".") + random.choice(FAKE_EMAIL_DOMAINS)
-    phone = "+79" + "".join(random.choices(string.digits, k=9))
-    return {"name": name, "email": email, "phone": phone}
+    return {
+        "name": name,
+        "email": email,
+        "phone": f"+79{''.join(random.choices(string.digits, k=9))}",
+        "address": f"ул. {random.choice(['Ленина', 'Гагарина'])} {random.randint(1, 100)}"
+    }
 
-# ---[ Основная логика ]---
+# ---[ Основной цикл ]---
 def main():
-    parser = argparse.ArgumentParser(description="Reaper-X: Dark OSINT Tool")
-    parser.add_argument("--target", help="Email/Username/Phone")
-    parser.add_argument("--darknet", help="Поиск в даркнете", action="store_true")
-    parser.add_argument("--telegram", help="Проверить Telegram", action="store_true")
-    parser.add_argument("--fake", help="Сгенерировать фейковые данные", action="store_true")
-    args = parser.parse_args()
+    show_banner()
+    while True:
+        show_menu()
+        choice = input("[?] Введите команду: ").strip()
 
-    result = {}
+        if choice == "01":
+            target = input("[+] Введите запрос для даркнета: ")
+            results = darknet_search(target)
+            print(f"\n[+] Результаты:\n{json.dumps(results, indent=2, ensure_ascii=False)}")
 
-    if args.target:
-        if args.darknet:
-            renew_tor_ip()
-            result["darknet"] = parse_darknet_forum(args.target)
-        if args.telegram:
-            result["telegram"] = check_telegram(args.target)
+        elif choice == "02":
+            username = input("[+] Введите Telegram @username: ")
+            print(f"\n[+] Данные: {json.dumps(telegram_search(username), indent=2)}")
 
-    if args.fake:
-        result["fake_identity"] = generate_fake_identity()
+        elif choice == "03":
+            count = int(input("[+] Сколько фейков сгенерировать? "))
+            fakes = [generate_fake_data() for _ in range(count)]
+            with open("fakes.json", "w") as f:
+                json.dump(fakes, f, indent=2, ensure_ascii=False)
+            print(f"\n[+] Сохранено в fakes.json")
 
-    # Сохранение в JSON
-    with open("result.json", "w") as f:
-        json.dump(result, f, indent=4, ensure_ascii=False)
+        elif choice == "07":
+            print("\n[!] Выход...")
+            break
 
-    print("Результаты сохранены в result.json")
+        else:
+            print("\n[!] Неверная команда!")
 
 if __name__ == "__main__":
     main()
