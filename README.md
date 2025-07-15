@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Tor](https://img.shields.io/badge/Tor-Enabled-red?logo=tor-project)
 
-**Reaper-X-Dark** — мощный инструмент для сбора информации (OSINT) с поддержкой **Tor, даркнета и Telegram**.  
+**Kyosuke** — мощный инструмент для сбора информации (OSINT) с поддержкой **Tor, даркнета и Telegram**.  
 Идеально для **этичного хакинга, пентеста и расследований**.
 
 ---
