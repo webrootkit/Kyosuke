@@ -22,3 +22,4 @@
 1. **Установи зависимости**:
    ```bash
    pip install requests beautifulsoup4 telethon stem pysocks
+   python Reaper-X-Dark.py --target "example@mail.com" --darknet
